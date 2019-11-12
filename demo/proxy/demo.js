@@ -7,6 +7,7 @@ const url = require('url');
 const createServerCertificate = require('./cert');
 
 function connect(clientRequest, clientSocket, head) {
+    console.log(111111);
     // 连接目标服务器
     const targetSocket = net.connect(this.fakeServerPort, '127.0.0.1', () => {
         // 通知客户端已经建立连接
@@ -51,6 +52,11 @@ function createProxyServer(proxyPort) {
         const proxyServer = https.createServer({
             key: forge.pki.privateKeyToPem(serverCrt.key),
             cert: forge.pki.certificateToPem(serverCrt.cert),
+        }, (req,res)=>
+        {
+            console.log(5555);
+            res.writeHead(200, {'Content-Type': 'text/plain'});
+            res.end('Hello World\n');
         })
 
         .on('error', reject)
@@ -59,11 +65,19 @@ function createProxyServer(proxyPort) {
             console.log('启动代理成功，代理地址：', proxyUrl);
             resolve(proxyServer);
         });
+
+        proxyServer.on('connect', function(){
+            console.log(222222)
+        });
+        proxyServer.on('connection', function(){
+            console.log(333333)
+        });
     });
 }
 
 // 业务逻辑
 function requestHandle(req, res) {
+    console.log(444444)
     res.writeHead(200);
     res.end('hello world\n');
 }
@@ -86,4 +100,4 @@ process.on('uncaughtException', (err) => {
     console.error(err);
 });
 
-main(6666);
+createProxyServer(443);

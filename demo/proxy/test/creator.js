@@ -1,22 +1,24 @@
-const fs = require('fs');
-const forge = require('node-forge');
-const path = require('path');
+var fs = require('fs'), path = require('path');
+var forge = require('node-forge');
+    forge.options.usePureJavaScript = true; 
 
-// 读取 CA证书，后面需要根据它创建域名证书
-const caKey = forge.pki.decryptRsaPrivateKey(fs.readFileSync(path.resolve(__dirname, './cert/cakey.pem')));
-const caCert = forge.pki.certificateFromPem(fs.readFileSync(path.resolve(__dirname, './cert/cacert.pem')));
-const certCache = {}; // 缓存证书
+var pki = forge.pki;
 
-/**
- * 根据所给域名生成对应证书
- */
-module.exports = function createServerCertificate(domain) {
-    if (certCache[domain]) {
-        return certCache[domain];
-    }
-    const keys = forge.pki.rsa.generateKeyPair(2046);
-    const cert = forge.pki.createCertificate();
+
+const caCertContent = fs.readFileSync(path.resolve(__dirname, '../cert/cacert.pem'));
+const caKey = pki.decryptRsaPrivateKey(fs.readFileSync(path.resolve(__dirname, '../cert/cakey.pem')));
+const caCert = pki.certificateFromPem(caCertContent);
+
+module.exports = function(domain){
+    var keys = pki.rsa.generateKeyPair(2048);
+    var cert = pki.createCertificate();
+
     cert.publicKey = keys.publicKey;
+    // cert.serialNumber = '01';
+    // cert.validity.notBefore = new Date();
+    // cert.validity.notAfter = new Date();
+    // cert.validity.notAfter.setFullYear(cert.validity.notBefore.getFullYear()+1);
+
     cert.serialNumber = `${new Date().getTime()}`;
     cert.validity.notBefore = new Date();
     cert.validity.notBefore.setFullYear(
@@ -26,8 +28,22 @@ module.exports = function createServerCertificate(domain) {
     cert.validity.notAfter.setFullYear(
         cert.validity.notAfter.getFullYear() + 1,
     );
+
+    var attrs = [
+        {name:'commonName',value:domain}
+        ,{name:'countryName',value:'US'}
+        ,{shortName:'ST',value:'Virginia'}
+        ,{name:'localityName',value:'Blacksburg'}
+        ,{name:'organizationName',value:'Test'}
+        ,{shortName:'OU',value:'Test'}
+    ];
+    // cert.setSubject(attrs);
+    // cert.setIssuer(attrs);
+    // cert.sign(keys.privateKey);
+
     cert.setIssuer(caCert.subject.attributes);
     cert.setSubject(caCert.subject.attributes);
+
     cert.setExtensions([
         {
             name: 'basicConstraints',
@@ -71,11 +87,17 @@ module.exports = function createServerCertificate(domain) {
             name: 'authorityKeyIdentifier',
         },
     ]);
+
     cert.sign(caKey, forge.md.sha256.create());
-    certCache[domain] = {
-        key: keys.privateKey,
-        publicKey: keys.publicKey,
-        cert,
+
+    var pem_privateKey = pki.privateKeyToPem(keys.privateKey);
+    var pem_publicKey = pki.publicKeyToPem(keys.publicKey);
+    var pem_cert = pki.certificateToPem(cert);
+
+    return {
+        caCertContent,
+        cert: pem_cert,
+        privateKey: pem_privateKey,
+        publicKey: pem_publicKey
     };
-    return certCache[domain];
-}
+};

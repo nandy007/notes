@@ -4,11 +4,14 @@
   "description": "",
   "main": "demo.js",
   "scripts": {
-    "test": "node demo.js"
+    "test": "supervisor demo.js",
+    "proxy": "supervisor ./test/proxy.js",
+    "tls": "supervisor ./test/tlsTest.js"
   },
   "author": "feirpri",
   "license": "ISC",
   "dependencies": {
-    "node-forge": "^0.8.2"
+    "node-forge": "^0.8.2",
+    "supervisor": "^0.12.0"
   }
 }
